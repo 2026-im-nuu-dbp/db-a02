@@ -22,14 +22,21 @@
 <body>
 
 <div class="admin-container">
-    <header class="header">
+<header class="header">
         <div>
             <h1>🛠️ 系統管理總覽</h1>
             <p style="color: #64748b;">即時監控全站行為 | 管理員模式</p>
         </div>
-        <div class="nav-actions">
-            <button class="btn btn-primary" onclick="location.href='dashboard.html'">個人面板</button>
-            <button class="btn btn-danger" onclick="adminLogout()">安全登出</button>
+        <div class="nav-actions" style="display: flex; align-items: center; gap: 8px;">
+            <select id="exportFormat" style="padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; outline: none;">
+                <option value="sql">SQL (資料庫備份)</option>
+                <option value="csv">CSV (Excel 報表)</option>
+                <option value="txt">TXT (純文字排版)</option>
+            </select>
+            <button class="btn" style="background: #10b981; color: white; padding: 0.5rem 1rem;" onclick="exportData()">📥 匯出</button>
+            
+            <button class="btn btn-primary" onclick="location.href='dashboard.html'" style="padding: 0.5rem 1rem;">個人面板</button>
+            <button class="btn btn-danger" onclick="adminLogout()" style="padding: 0.5rem 1rem;">安全登出</button>
         </div>
     </header>
 
@@ -120,7 +127,13 @@
             location.href = 'api/logout.php';
         }
     }
-
+// 新增：動態匯出函式
+    function exportData() {
+        // 抓取下拉選單目前選擇的值
+        const format = document.getElementById('exportFormat').value;
+        // 帶入參數並觸發下載
+        window.location.href = `api/export.php?format=${format}`;
+    }
     fetchAdminData();
 </script>
 
