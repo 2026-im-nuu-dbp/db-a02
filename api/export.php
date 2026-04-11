@@ -3,6 +3,12 @@
 session_start();
 require_once '../databases.php';
 
+// Initialize database connection if not already set
+if (!isset($pdo)) {
+    http_response_code(500);
+    exit('資料庫連線失敗。');
+}
+
 // 🛡️ 嚴格權限檢查
 if (($_SESSION['role'] ?? '') !== 'admin') {
     http_response_code(403);
