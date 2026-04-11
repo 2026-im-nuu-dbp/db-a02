@@ -31,7 +31,7 @@
 
 
 /db-a02
-├── index.html            (登入首頁 + 資料補完表單)
+├── index.html            (登入(Google api)首頁 + 資料補完表單)
 ├── dashboard.html        (使用者主控台)
 ├── admin.html            (管理員監控後台)
 ├── databases.php         (資料庫連線設定)
@@ -42,7 +42,8 @@
 │   ├── auth.php          (Google 登入驗證)
 │   ├── profile.php       (個人資料存取)
 │   ├── memo.php          (備忘錄新增與讀取)
-│   └── admin.php         (管理員專用資料介面)
+│   |── admin.php         (管理員專用資料介面)
+|   └── export.php        (輸出三個資料表)
 └── uploads/              (請手動建立，並給予寫入權限)
     ├── images/           (存放原始圖片)
     └── thumbs/           (存放縮圖)
