@@ -28,4 +28,22 @@
 6. 圖文備忘功能具備 新增、刪除、修改、列出
 7. 登入資料可以被瀏覽
 
+
+
+/db-a02
+├── index.html            (登入首頁 + 資料補完表單)
+├── dashboard.html        (使用者主控台)
+├── admin.html            (管理員監控後台)
+├── databases.php         (資料庫連線設定)
+├── init.sql              (資料庫建置腳本)
+├── css/
+│   └── style.css         (全站樣式)
+├── api/
+│   ├── auth.php          (Google 登入驗證)
+│   ├── profile.php       (個人資料存取)
+│   ├── memo.php          (備忘錄新增與讀取)
+│   └── admin.php         (管理員專用資料介面)
+└── uploads/              (請手動建立，並給予寫入權限)
+    ├── images/           (存放原始圖片)
+    └── thumbs/           (存放縮圖)
 ## 自行設計的內容說明(同學自填)

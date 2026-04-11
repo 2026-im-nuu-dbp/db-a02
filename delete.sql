@@ -1,0 +1,2 @@
+-- 增加軟刪除標記欄位
+ALTER TABLE dbmemo ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作面板 - 圖文備忘錄</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* 垃圾桶視角專屬視覺回饋 */
+        .is-trash {
+            opacity: 0.7;
+            border: 2px dashed #94a3b8 !important;
+            filter: saturate(0.5);
+        }
+        .tab-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        .tab-btn {
+            background: #e2e8f0;
+            color: #475569;
+            flex: 1;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tab-btn.active {
+            background: #2563eb;
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        .memo-item {
+            transition: transform 0.2s;
+        }
+        .memo-item:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="header">
+        <div>
+            <h2 id="welcomeText">載入中...</h2>
+            <span id="roleBadge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: #f1f5f9;">使用者</span>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <div id="adminEntry" style="display: none;">
+                <button class="btn" style="background: #8b5cf6; color: white;" onclick="location.href='admin.html'">⚙️ 管理系統</button>
+            </div>
+            <button class="btn btn-danger" onclick="confirmLogout()">登出</button>
+        </div>
+    </header>
+
+    <section class="card" id="editorCard">
+        <h3>🚀 捕捉靈感</h3>
+        <form id="memoForm">
+            <textarea name="content" id="memoInput" placeholder="輸入文字內容..." required style="min-height: 100px;"></textarea>
+            <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                <div style="flex-grow: 1;">
+                    <label style="font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 5px;">附加圖片：</label>
+                    <input type="file" name="image" accept="image/*" style="margin: 0;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="align-self: flex-end;">發佈備忘</button>
+            </div>
+        </form>
+    </section>
+
+    <div class="tab-container">
+        <button id="viewActive" class="btn tab-btn active" onclick="changeView('active')">我的備忘錄</button>
+        <button id="viewTrash" class="btn tab-btn" onclick="changeView('trash')">🗑️ 垃圾桶</button>
+    </div>
+
+    <div id="memoGrid" class="memo-grid">
+        </div>
+</div>
+
+<script>
+    let currentMode = 'active'; // 記錄當前是在「正常」還是「垃圾桶」模式
+
+    // 1. 初始化頁面
+    async function initDashboard() {
+        try {
+            const res = await fetch('api/profile.php');
+            const result = await res.json();
+            
+            if (result.status === 'error') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const user = result.data;
+            document.getElementById('welcomeText').innerText = `你好，${user.nickname}`;
+            
+            if (user.role === 'admin') {
+                document.getElementById('adminEntry').style.display = 'block';
+                document.getElementById('roleBadge').innerText = '系統管理員';
+                document.getElementById('roleBadge').style.background = '#ddd6fe';
+                document.getElementById('roleBadge').style.color = '#5b21b6';
+            }
+
+            refreshMemos();
+        } catch (err) {
+            console.error("初始化失敗", err);
+        }
+    }
+
+    // 2. 切換列表模式
+    function changeView(mode) {
+        currentMode = mode;
+        document.getElementById('viewActive').classList.toggle('active', mode === 'active');
+        document.getElementById('viewTrash').classList.toggle('active', mode === 'trash');
+        
+        // 垃圾桶模式下隱藏輸入框，專心處理恢復或清理
+        document.getElementById('editorCard').style.display = (mode === 'active') ? 'block' : 'none';
+        
+        refreshMemos();
+    }
+
+    // 3. 重新整理備忘錄列表
+    async function refreshMemos() {
+        const action = (currentMode === 'active') ? 'list' : 'trash_list';
+        const grid = document.getElementById('memoGrid');
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 50px;">載入中...</div>';
+
+        try {
+            const res = await fetch(`api/memo.php?action=${action}`);
+            const result = await res.json();
+            
+            if (!result.data || result.data.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #94a3b8;">
+                        ${currentMode === 'active' ? '這裡空空如也，寫點什麼吧！' : '垃圾桶是空的。'}
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = result.data.map(m => `
+                <div class="card memo-item ${currentMode === 'trash' ? 'is-trash' : ''}">
+                    <p id="text-${m.id}" style="white-space: pre-wrap; margin-bottom: 12px;">${m.content}</p>
+                    ${m.thumb_path ? `<img src="${m.thumb_path}" onclick="window.open('${m.image_path}')" style="cursor: zoom-in; width: 100%; border-radius: 6px;">` : ''}
+                    
+                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; pt: 10px;">
+                        <span style="font-size: 0.7rem; color: #94a3b8;">${m.created_at}</span>
+                        <div>
+                            ${currentMode === 'active' ? `
+                                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: #f59e0b; color: white;" onclick="triggerEdit(${m.id})">改</button>
+                                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: #ef4444; color: white;" onclick="memoAction('soft_delete', ${m.id})">刪</button>
+                            ` : `
+                                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: #22c55e; color: white;" onclick="memoAction('restore', ${m.id})">還原</button>
+                                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: #000; color: white;" onclick="memoAction('hard_delete', ${m.id})">銷毀</button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            grid.innerHTML = '<div style="color: red;">讀取失敗，請檢查 API</div>';
+        }
+    }
+
+    // 4. 送出新備忘錄
+    document.getElementById('memoForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        fd.append('action', 'create');
+
+        const res = await fetch('api/memo.php', { method: 'POST', body: fd });
+        if ((await res.json()).status === 'success') {
+            e.target.reset();
+            refreshMemos();
+        }
+    };
+
+    // 5. 處理各類按鈕動作 (軟刪除、恢復、徹底刪除)
+    async function memoAction(action, id) {
+        if (action === 'hard_delete' && !confirm('⚠️ 這將永久刪除檔案與紀錄，不可恢復！確定嗎？')) return;
+        
+        const fd = new FormData();
+        fd.append('action', action);
+        fd.append('id', id);
+
+        const res = await fetch('api/memo.php', { method: 'POST', body: fd });
+        const result = await res.json();
+        
+        if (result.status === 'success') {
+            refreshMemos();
+        } else {
+            alert(result.message);
+        }
+    }
+
+    // 6. 快速編輯文字
+    async function triggerEdit(id) {
+        const oldVal = document.getElementById(`text-${id}`).innerText;
+        const newVal = prompt("請修改備忘錄內容：", oldVal);
+        
+        if (newVal === null || newVal === oldVal || newVal.trim() === "") return;
+
+        const fd = new FormData();
+        fd.append('action', 'update');
+        fd.append('id', id);
+        fd.append('content', newVal);
+
+        await fetch('api/memo.php', { method: 'POST', body: fd });
+        refreshMemos();
+    }
+
+    function confirmLogout() {
+        if (confirm("確定要安全登出嗎？")) location.href = 'api/logout.php';
+    }
+
+    initDashboard();
+</script>
+
+</body>
+</html>
