@@ -1,3 +1,4 @@
+[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/VOLNfwbe)
 # 作業 5 資料庫基礎存取
 
 ## 繳交說明
@@ -27,4 +28,80 @@
 6. 圖文備忘功能具備 新增、刪除、修改、列出
 7. 登入資料可以被瀏覽
 
+
+
+/db-a02
+├── index.html            (登入(Google api)首頁 + 資料補完表單)
+├── dashboard.html        (使用者主控台)
+├── admin.html            (管理員監控後台)
+├── databases.php         (資料庫連線設定)
+├── init.sql              (資料庫建置腳本)
+├── css/
+│   └── style.css         (全站樣式)
+├── api/
+│   ├── auth.php          (Google 登入驗證)
+│   ├── profile.php       (個人資料存取)
+│   ├── memo.php          (備忘錄新增與讀取)
+│   |── admin.php         (管理員專用資料介面)
+|   └── export.php        (輸出三個資料表)
+└── uploads/              (請手動建立，並給予寫入權限)
+    ├── images/           (存放原始圖片)
+    └── thumbs/           (存放縮圖)
 ## 自行設計的內容說明(同學自填)
+
+作品介紹:
+
+一、 這套系統到底在幹嘛？
+
+簡單來說，這是一個「有權限分級的圖文備忘錄系統」。我們不用傳統的帳號密碼，而是直接串 Google 登入，這樣不僅安全，大家用起來也比較順手。系統裡面有兩個角色：
+
+一般同學 (User)：可以進來寫筆記、上傳圖片，如果不小心刪除，還有「垃圾桶」可以救回來。
+
+管理員 (Admin)：有個專屬的「上帝視角」後台，能看到所有人寫了什麼、誰在哪個時候登入，甚至連別人在垃圾桶裡的資料都看得一清二楚。
+
+我們上傳圖片時，後端還會自動幫忙做「縮圖處理」，這樣網頁跑起來會比較順，不會因為圖片太大卡住。
+
+二、 檔案之間是怎麼合作的？
+
+你可以把這整個系統分成三塊：資料庫（存資料的地方）、前端（你看到的畫面）、後端（在背後做苦力的程式）。
+
+資料庫 (MySQL)：
+
+databases.php：這是核心！前端和後端要跟資料庫講話，都要靠它幫忙連線。
+
+init.sql / admin.sql：這是用來在資料庫建立表格（像會員名單、備忘錄清單）的腳本。
+
+前端 (HTML + CSS)：
+
+index.html：大門口。大家在這裡用 Google 登入，第一次來還要填寫基本資料。
+
+dashboard.html：個人小天地。在這裡可以新增、修改、刪除備忘錄，也能查看垃圾桶。
+
+admin.html：管理員專屬後台。用表格列出所有人的資料、發文和登入紀錄。
+
+logout.html：登出畫面，會有個小動畫跟你說掰掰，然後跳回首頁。
+
+css/style.css：全站的「化妝師」，負責把畫面弄得漂亮、整齊。
+
+後端 (PHP API)：
+
+api/auth.php：守衛。檢查你的 Google 帳號是不是第一次來，並把你的身分（是一般人還是管理員）記下來。
+
+api/profile.php：個人資料管理員。負責讀取或更新你的暱稱、性別和興趣。
+
+api/memo.php：備忘錄總管。處理你新增的圖文、幫圖片縮圖，還有處理「丟進垃圾桶」跟「徹底刪除」的功能。
+
+api/admin.php：情報局長。只有管理員能呼叫它，它會去資料庫把所有人的底細都挖出來，傳給 admin.html 顯示。
+
+api/logout.php：清除紀錄。幫你把登入狀態清空，確保安全。
+
+三、 這些檔案是怎麼互動的？（舉幾個例子）
+
+情境 1：第一次登入
+你在 index.html 按下 Google 登入 -> index.html 把你的資料丟給 api/auth.php -> api/auth.php 去問資料庫「這人來過嗎？」 -> 資料庫說「沒有」 -> api/auth.php 就先幫你建檔，然後跟 index.html 說「他是新來的」 -> index.html 就會跳出表單請你填資料 -> 填完後送給 api/profile.php 存起來 -> 進入 dashboard.html。
+
+情境 2：發布一篇備忘錄
+你在 dashboard.html 打好字、選好圖片按下送出 -> 資料被送到 api/memo.php -> api/memo.php 先把圖片存到 uploads/images/，再做一張縮圖存到 uploads/thumbs/ -> 然後把「這篇文是誰發的」、「文字內容是什麼」、「圖片放在哪裡」通通寫進資料庫裡 -> dashboard.html 重新抓取資料，你的新文章就出現了。
+
+情境 3：管理員去後台巡邏
+你用管理員帳號登入後，點擊進入 admin.html -> admin.html 去跟 api/admin.php 要資料 -> api/admin.php 會先檢查「你真的是管理員嗎？」 -> 確定身分後，它就去資料庫把所有使用者名單、登入紀錄、跟所有的備忘錄（包含別人刪掉放在垃圾桶的）都抓出來 -> 傳回給 admin.html 用表格列出來給你看。

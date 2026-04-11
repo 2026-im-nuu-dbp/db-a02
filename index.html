@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登入 - 圖文備忘錄系統</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* 登入頁專用的垂直置中佈局 */
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 0;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem;
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .step-title {
+            margin-bottom: 1.5rem;
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loginBlock" class="card login-card">
+        <div class="logo-icon">📝</div>
+        <h2 class="step-title">圖文備忘錄系統</h2>
+        <p style="color: #64748b; margin-bottom: 2rem;">串連 Google 帳號，開啟你的靈感空間</p>
+        
+        <div id="googleBtnContainer" style="display: flex; justify-content: center;">
+            </div>
+        
+        <p style="margin-top: 2rem; font-size: 0.8rem; color: #94a3b8;">
+            登入即代表您同意本系統的服務條款
+        </p>
+    </div>
+
+    <div id="profileBlock" class="card login-card" style="display: none;">
+        <div class="logo-icon">✨</div>
+        <h2 class="step-title">最後一步：完善個人資料</h2>
+        <p style="color: #64748b; margin-bottom: 1.5rem;">讓我們更了解你，提供更好的服務</p>
+        
+        <form id="setupProfileForm" style="text-align: left;">
+            <div class="form-group">
+                <label>顯示暱稱</label>
+                <input type="text" name="nickname" id="initNickname" placeholder="想被如何稱呼？" required>
+            </div>
+            
+            <div class="form-group">
+                <label>性別</label>
+                <select name="gender" required>
+                    <option value="" disabled selected>請選擇您的性別</option>
+                    <option value="male">男性</option>
+                    <option value="female">女性</option>
+                    <option value="other">不公開 / 其他</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>興趣愛好 (選填)</label>
+                <input type="text" name="interests" placeholder="例如：程式設計、旅遊、攝影">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                完成，進入主控台
+            </button>
+        </form>
+    </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+    // 1. JWT 解碼函式 (從 Google 憑證中提取資訊)
+    function parseJwt(token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+        return JSON.parse(jsonPayload);
+    }
+
+    // 2. 處理 Google 登入回傳的回呼函式
+    async function handleCredentialResponse(response) {
+        const userInfo = parseJwt(response.credential);
+        
+        try {
+            const res = await fetch('api/auth.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'google_login',
+                    account: userInfo.email,
+                    nickname: userInfo.name
+                })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                if (data.is_new_user) {
+                    // 若是新用戶：隱藏登入區，顯示資料填寫區
+                    document.getElementById('loginBlock').style.display = 'none';
+                    document.getElementById('profileBlock').style.display = 'block';
+                    document.getElementById('initNickname').value = data.nickname; 
+                } else {
+                    // 若是老用戶：直接跳轉
+                    window.location.href = 'dashboard.html';
+                }
+            } else {
+                alert('伺服器驗證失敗：' + data.message);
+            }
+        } catch (e) {
+            console.error("登入請求出錯", e);
+            alert("網路連線異常，請稍後再試");
+        }
+    }
+
+    // 3. 處理補完資料表單提交
+    document.getElementById('setupProfileForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        try {
+            const res = await fetch('api/profile.php', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await res.json();
+            
+            if (result.status === 'success') {
+                window.location.href = 'dashboard.html';
+            } else {
+                alert('資料儲存失敗，請重試');
+            }
+        } catch (e) {
+            alert('系統繁忙中');
+        }
+    };
+
+    // 4. 初始化 Google 登入按鈕
+    window.onload = function () {
+        google.accounts.id.initialize({
+            // ⚠️ 重要：請務必替換為你自己在 Google Cloud Console 申請的 ID
+            client_id: "489576210559-7m4e5b3afhbgcqjj884uatliml3tou6g.apps.googleusercontent.com", 
+            callback: handleCredentialResponse,
+            auto_select: false, // 關閉自動選擇以確保使用者體驗
+            cancel_on_tap_outside: false
+        });
+
+        google.accounts.id.renderButton(
+            document.getElementById("googleBtnContainer"),
+            { 
+                theme: "outline", 
+                size: "large", 
+                width: 280,
+                text: "signin_with",
+                shape: "pill" // 藥丸型按鈕更具現代感
+            } 
+        );
+
+        // 也可以開啟一鍵快速登入提示 (One Tap)
+        google.accounts.id.prompt(); 
+    };
+</script>
+
+</body>
+</html>

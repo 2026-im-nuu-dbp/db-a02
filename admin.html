@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理後台 - 系統全域監控</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .admin-container { max-width: 1200px; margin: 0 auto; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-deleted { background: #fee2e2; color: #991b1b; }
+        .role-admin { color: #8b5cf6; font-weight: bold; }
+        .data-table-wrapper { overflow-x: auto; margin-bottom: 2rem; }
+        .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; padding-left: 5px; border-left: 4px solid #2563eb; }
+        tr.is-soft-deleted { background-color: #fff1f2; color: #475569; }
+        
+        /* 新增：頂部按鈕群組 */
+        .nav-actions { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="admin-container">
+<header class="header">
+        <div>
+            <h1>🛠️ 系統管理總覽</h1>
+            <p style="color: #64748b;">即時監控全站行為 | 管理員模式</p>
+        </div>
+        <div class="nav-actions" style="display: flex; align-items: center; gap: 8px;">
+            <select id="exportFormat" style="padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; outline: none;">
+                <option value="sql">SQL (資料庫備份)</option>
+                <option value="csv">CSV (Excel 報表)</option>
+                <option value="txt">TXT (純文字排版)</option>
+            </select>
+            <button class="btn" style="background: #10b981; color: white; padding: 0.5rem 1rem;" onclick="exportData()">📥 匯出</button>
+            
+            <button class="btn btn-primary" onclick="location.href='dashboard.html'" style="padding: 0.5rem 1rem;">個人面板</button>
+            <button class="btn btn-danger" onclick="adminLogout()" style="padding: 0.5rem 1rem;">安全登出</button>
+        </div>
+    </header>
+
+    <section class="card">
+        <h3 class="section-title">👥 註冊使用者</h3>
+        <div class="data-table-wrapper">
+            <table id="userTable">
+                <thead><tr><th>ID</th><th>帳號</th><th>暱稱</th><th>權限</th><th>註冊時間</th></tr></thead>
+                <tbody><tr><td colspan="5" style="text-align:center;">讀取中...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h3 class="section-title">📝 全站備忘錄 (監控模式)</h3>
+        <div class="data-table-wrapper">
+            <table id="memoTable">
+                <thead><tr><th>作者</th><th>內容</th><th>圖片</th><th>狀態</th><th>建立時間</th></tr></thead>
+                <tbody><tr><td colspan="5" style="text-align:center;">讀取中...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h3 class="section-title">🔐 登入活動日誌</h3>
+        <div class="data-table-wrapper">
+            <table id="logTable">
+                <thead><tr><th>帳號</th><th>活動時間</th><th>結果</th></tr></thead>
+                <tbody><tr><td colspan="3" style="text-align:center;">讀取中...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script>
+    async function fetchAdminData() {
+        try {
+            const res = await fetch('api/admin.php');
+            const result = await res.json();
+
+            if (result.status === 'error') {
+                alert('權限驗證失敗！');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            const { users, memos, logs } = result.data;
+
+            // 渲染使用者
+            document.querySelector('#userTable tbody').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.account}</td>
+                    <td>${u.nickname}</td>
+                    <td><span class="${u.role === 'admin' ? 'role-admin' : ''}">${u.role.toUpperCase()}</span></td>
+                    <td style="font-size: 0.8rem;">${u.created_at}</td>
+                </tr>
+            `).join('');
+
+            // 渲染備忘錄
+            document.querySelector('#memoTable tbody').innerHTML = memos.map(m => `
+                <tr class="${m.deleted_at ? 'is-soft-deleted' : ''}">
+                    <td style="font-weight: bold;">${m.nickname}</td>
+                    <td><div style="max-width:300px; overflow:hidden; text-overflow:ellipsis;">${m.content}</div></td>
+                    <td>${m.thumb_path ? `<img src="${m.thumb_path}" width="40" onclick="window.open('${m.image_path}')">` : '無'}</td>
+                    <td>${m.deleted_at ? `<span class="status-badge status-deleted">已刪除</span>` : `<span class="status-badge status-active">正常</span>`}</td>
+                    <td style="font-size: 0.8rem;">${m.created_at}</td>
+                </tr>
+            `).join('');
+
+            // 渲染日誌
+            document.querySelector('#logTable tbody').innerHTML = logs.map(l => `
+                <tr>
+                    <td>${l.account}</td>
+                    <td style="font-size: 0.8rem;">${l.login_time}</td>
+                    <td style="color: ${l.is_success == 1 ? 'green' : 'red'}">${l.is_success == 1 ? '成功' : '失敗'}</td>
+                </tr>
+            `).join('');
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // 新增：管理員登出邏輯
+    function adminLogout() {
+        if (confirm("您正在以管理員身份登出，確定嗎？")) {
+            location.href = 'api/logout.php';
+        }
+    }
+// 新增：動態匯出函式
+    function exportData() {
+        // 抓取下拉選單目前選擇的值
+        const format = document.getElementById('exportFormat').value;
+        // 帶入參數並觸發下載
+        window.location.href = `api/export.php?format=${format}`;
+    }
+    fetchAdminData();
+</script>
+
+</body>
+</html>
