@@ -26,9 +26,39 @@
             <div id="adminEntry" style="display: none;">
                 <button class="btn" style="background: #8b5cf6; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer;" onclick="location.href='admin.html'">⚙️ 管理系統</button>
             </div>
+            <button class="btn" style="background: #2563eb; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer;" onclick="toggleProfileCard()">👤 編輯個人資料</button>
             <button class="btn btn-danger" style="padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; background: #ef4444; color: white;" onclick="confirmLogout()">登出</button>
         </div>
     </header>
+
+    <section class="card" id="profileCard" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h3 style="margin-top: 0; color: #1e293b;">👤 個人檔案設定</h3>
+        <form id="profileForm">
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px;">
+                    <div>
+                        <label style="font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 5px;">顯示暱稱</label>
+                        <input id="profileNickname" name="nickname" type="text" placeholder="你的暱稱" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 5px;">性別</label>
+                        <select id="profileGender" name="gender" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;">
+                            <option value="male">男性</option>
+                            <option value="female">女性</option>
+                            <option value="other">不公開 / 其他</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 5px;">興趣愛好</label>
+                    <input id="profileInterests" name="interests" type="text" placeholder="例如：程式設計、旅遊、攝影" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+                </div>
+                <div style="text-align: right;">
+                    <button type="submit" class="btn btn-primary" style="white-space: nowrap; padding: 8px 16px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">儲存個人資料</button>
+                </div>
+            </div>
+        </form>
+    </section>
 
     <section class="card" id="editorCard" style="margin-bottom: 2rem; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
         <h3 style="margin-top: 0; color: #1e293b;">🚀 捕捉靈感</h3>
@@ -115,6 +145,7 @@
                 document.getElementById('roleBadge').style.color = '#5b21b6';
             }
 
+            bindProfileForm(user);
             refreshMemos();
         } catch (err) {
             console.error("初始化失敗", err);
@@ -128,6 +159,18 @@
         document.getElementById('viewTrash').classList.toggle('active', mode === 'trash');
         document.getElementById('editorCard').style.display = (mode === 'active') ? 'block' : 'none';
         refreshMemos();
+    }
+
+    function toggleProfileCard() {
+        const card = document.getElementById('profileCard');
+        card.style.display = card.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function bindProfileForm(user) {
+        if (!user) return;
+        document.getElementById('profileNickname').value = user.nickname || '';
+        document.getElementById('profileGender').value = user.gender || 'other';
+        document.getElementById('profileInterests').value = user.interests || '';
     }
 
     // 3. 重新整理備忘錄列表 (加入防快取機制)
@@ -186,7 +229,36 @@
         }
     }
 
-    // 4. 送出新備忘錄 (加入防連點與 JSON 攔截)
+    // 4. 個人資料更新
+    document.getElementById('profileForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerText = '儲存中...';
+        submitBtn.style.opacity = '0.7';
+
+        const fd = new FormData(e.target);
+
+        try {
+            const res = await fetch('api/profile.php', { method: 'POST', body: fd });
+            const result = await res.json();
+            if (result.status === 'success') {
+                alert('個人資料更新成功');
+                document.getElementById('welcomeText').innerText = `你好，${document.getElementById('profileNickname').value}`;
+            } else {
+                alert(result.message || '更新失敗');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('更新失敗，請稍後再試');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = '儲存個人資料';
+            submitBtn.style.opacity = '1';
+        }
+    };
+
+    // 5. 送出新備忘錄 (加入防連點與 JSON 攔截)
     document.getElementById('memoForm').onsubmit = async (e) => {
         e.preventDefault();
         const submitBtn = e.target.querySelector('button[type="submit"]');

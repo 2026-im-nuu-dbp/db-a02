@@ -1,32 +1,81 @@
 <?php
 session_start();
 require_once '../databases.php';
+require_once 'mailer.php';
 header('Content-Type: application/json');
 
-/**
- * 🛡️ 權限硬核檢查
- * 確保只有 role 為 admin 的 Session 才能繼續執行
- */
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    http_response_code(403); // 回傳「禁止存取」狀態碼
+    http_response_code(403);
     echo json_encode([
-        'status' => 'error', 
+        'status' => 'error',
         'message' => '權限不足：偵測到非管理員存取嘗試。'
     ]);
     exit;
 }
 
+$pdo->exec("CREATE TABLE IF NOT EXISTS db_user_changes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    account VARCHAR(100) NOT NULL,
+    changed_by VARCHAR(100) DEFAULT NULL,
+    action_type ENUM('profile_update','delete_user') NOT NULL,
+    field_name VARCHAR(50) DEFAULT NULL,
+    old_value TEXT DEFAULT NULL,
+    new_value TEXT DEFAULT NULL,
+    note TEXT DEFAULT NULL,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+
 try {
-    // 1. 抓取所有註冊使用者
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+
+        if ($action === 'delete_user') {
+            $userId = intval($_POST['id'] ?? 0);
+            if ($userId <= 0) {
+                throw new Exception('無效的使用者 ID');
+            }
+            if ($userId === $_SESSION['user_id']) {
+                throw new Exception('管理員不可刪除自己');
+            }
+
+            $stmt = $pdo->prepare("SELECT id, account, nickname FROM dbusers WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            if (!$user) {
+                throw new Exception('使用者不存在或已被刪除');
+            }
+
+            $adminName = $_SESSION['nickname'] ?? '管理員';
+            $insert = $pdo->prepare("INSERT INTO db_user_changes (user_id, account, changed_by, action_type, note) VALUES (?, ?, ?, 'delete_user', ?)");
+            $insert->execute([$user['id'], $user['account'], $adminName, '管理員刪除使用者']);
+
+            sendSystemNotice(
+                $user['account'],
+                $user['nickname'],
+                '帳號已被刪除',
+                "您好，您的帳號已由管理員刪除。如有疑問請聯絡系統管理員。"
+            );
+
+            $delete = $pdo->prepare("DELETE FROM dbusers WHERE id = ?");
+            $delete->execute([$userId]);
+
+            echo json_encode(['status' => 'success', 'message' => '使用者已刪除']);
+            exit;
+        }
+
+        throw new Exception('不支援的管理操作');
+    }
+
     $usersStmt = $pdo->query("SELECT id, account, nickname, gender, role, created_at FROM dbusers ORDER BY id ASC");
     $users = $usersStmt->fetchAll();
 
-    // 2. 抓取最新 50 筆登入活動日誌
     $logsStmt = $pdo->query("SELECT * FROM dblog ORDER BY login_time DESC LIMIT 50");
     $logs = $logsStmt->fetchAll();
 
-    // 3. 抓取全站備忘錄 (重點：使用 JOIN 取得作者暱稱，且不篩選 deleted_at)
-    // 這樣管理員才能看到所有人「正常」與「垃圾桶」中的所有內容
+    $changesStmt = $pdo->query("SELECT * FROM db_user_changes ORDER BY changed_at DESC LIMIT 100");
+    $changes = $changesStmt->fetchAll();
+
     $memoSql = "
         SELECT 
             m.id, 
@@ -43,22 +92,21 @@ try {
     $memosStmt = $pdo->query($memoSql);
     $memos = $memosStmt->fetchAll();
 
-    // 4. 封裝並回傳所有資料
     echo json_encode([
         'status' => 'success',
         'data' => [
             'users' => $users,
-            'logs'  => $logs,
+            'logs' => $logs,
+            'changes' => $changes,
             'memos' => $memos
         ]
     ]);
 
-} catch (PDOException $e) {
-    // 針對資料庫連線或查詢錯誤進行處理
+} catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
-        'status' => 'error', 
-        'message' => '資料庫讀取失敗：' . $e->getMessage()
+        'status' => 'error',
+        'message' => $e->getMessage()
     ]);
 }
 ?>

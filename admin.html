@@ -44,8 +44,8 @@
         <h3 class="section-title">👥 註冊使用者</h3>
         <div class="data-table-wrapper">
             <table id="userTable">
-                <thead><tr><th>ID</th><th>帳號</th><th>暱稱</th><th>權限</th><th>註冊時間</th></tr></thead>
-                <tbody><tr><td colspan="5" style="text-align:center;">讀取中...</td></tr></tbody>
+                <thead><tr><th>ID</th><th>帳號</th><th>暱稱</th><th>權限</th><th>註冊時間</th><th>操作</th></tr></thead>
+                <tbody><tr><td colspan="6" style="text-align:center;">讀取中...</td></tr></tbody>
             </table>
         </div>
     </section>
@@ -69,6 +69,16 @@
             </table>
         </div>
     </section>
+
+    <section class="card">
+        <h3 class="section-title">✏️ 使用者變更紀錄</h3>
+        <div class="data-table-wrapper">
+            <table id="changeTable">
+                <thead><tr><th>帳號</th><th>動作</th><th>欄位</th><th>舊值</th><th>新值</th><th>操作人</th><th>時間</th></tr></thead>
+                <tbody><tr><td colspan="7" style="text-align:center;">讀取中...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 <script>
@@ -83,7 +93,7 @@
                 return;
             }
 
-            const { users, memos, logs } = result.data;
+            const { users, memos, logs, changes } = result.data;
 
             // 渲染使用者
             document.querySelector('#userTable tbody').innerHTML = users.map(u => `
@@ -93,6 +103,20 @@
                     <td>${u.nickname}</td>
                     <td><span class="${u.role === 'admin' ? 'role-admin' : ''}">${u.role.toUpperCase()}</span></td>
                     <td style="font-size: 0.8rem;">${u.created_at}</td>
+                    <td><button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="deleteUser(${u.id})">刪除</button></td>
+                </tr>
+            `).join('');
+
+            // 渲染變更紀錄
+            document.querySelector('#changeTable tbody').innerHTML = changes.map(c => `
+                <tr>
+                    <td>${c.account}</td>
+                    <td>${c.action_type === 'delete_user' ? '刪除使用者' : '更新個人資料'}</td>
+                    <td>${c.field_name || '-'}</td>
+                    <td>${c.old_value || '-'}</td>
+                    <td>${c.new_value || '-'}</td>
+                    <td>${c.changed_by || '-'}</td>
+                    <td style="font-size: 0.8rem;">${c.changed_at}</td>
                 </tr>
             `).join('');
 
@@ -127,7 +151,29 @@
             location.href = 'api/logout.php';
         }
     }
-// 新增：動態匯出函式
+
+    async function deleteUser(id) {
+        if (!confirm('⚠️ 確定要刪除此使用者嗎？此動作將會移除該使用者與其所有備忘錄。')) return;
+        const fd = new FormData();
+        fd.append('action', 'delete_user');
+        fd.append('id', id);
+
+        try {
+            const res = await fetch('api/admin.php', { method: 'POST', body: fd });
+            const result = await res.json();
+            if (result.status === 'success') {
+                alert('使用者已刪除');
+                fetchAdminData();
+            } else {
+                alert(result.message || '刪除失敗');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('刪除請求失敗，請稍後再試');
+        }
+    }
+
+    // 新增：動態匯出函式
     function exportData() {
         // 抓取下拉選單目前選擇的值
         const format = document.getElementById('exportFormat').value;
