@@ -86,7 +86,6 @@
    - `admin.html`：管理員後台，查詢全站資料與登入日誌。
    - `logout.html`：登出提示頁。
    - `css/style.css`：全站共用樣式。
-   - `css/login.css`、`css/dashboard.css`、`css/admin.css`、`css/logout.css`：各頁面專屬樣式封裝。
 
 3. **後端 API 層**
    - `api/auth.php`：Google 登入驗證與身份判斷。
