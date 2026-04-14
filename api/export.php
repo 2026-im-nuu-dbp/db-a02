@@ -37,7 +37,7 @@ if ($format === 'sql') {
         $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
         if ($rows) {
             foreach ($rows as $row) {
-                $vals = array_map(fn($val) => $val === null ? 'NULL' : $pdo->quote($val), array_values($row));
+                $vals = array_map(function($val) { return $val === null ? 'NULL' : $pdo->quote($val); }, array_values($row));
                 echo "INSERT INTO `$table` VALUES (" . implode(", ", $vals) . ");\n";
             }
             echo "\n";
@@ -92,7 +92,7 @@ elseif ($format === 'txt') {
             echo str_repeat("-", 80) . "\n";
             foreach ($rows as $row) {
                 // 將換行符號替換掉，避免破壞排版
-                $cleanRow = array_map(fn($val) => str_replace(["\r", "\n"], " ", (string)$val), $row);
+                $cleanRow = array_map(function($val) { return str_replace(["\r", "\n"], " ", (string)$val); }, $row);
                 echo implode(" \t| ", $cleanRow) . "\n";
             }
         } else {
