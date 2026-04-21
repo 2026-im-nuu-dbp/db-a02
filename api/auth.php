@@ -6,7 +6,7 @@ session_set_cookie_params([
     'lifetime' => 86400,
     'path' => '/',
     'domain' => '',
-    'secure' => false,   // ⚠️ 注意：因為你在 localhost 開發沒有 HTTPS，這裡先設為 false。未來上線若有 SSL 請改為 true
+    'secure' => false,   // 注意：因為你在 localhost 開發沒有 HTTPS，這裡先設為 false。未來上線若有 SSL 請改為 true
     'httponly' => true,  // 禁止 JavaScript 讀取 Cookie，防禦 XSS
     'samesite' => 'Lax'  // 防禦 CSRF 跨站請求偽造
 ]);

@@ -8,7 +8,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode([
         'status' => 'error',
-        'message' => '權限不足：偵測到非管理員存取嘗試。'
+        'message' => '權限不足：偵測到非管理員存取嘗試'
     ]);
     exit;
 }
