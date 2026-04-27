@@ -80,6 +80,53 @@ switch ($action) {
         $stmt->execute([$id, $user_id]);
         header("Location: dashboard.php?token=" . urlencode($token) . "&mode=trash");
         exit;
+
+    case 'update':
+        $id = $_POST['id'] ?? 0;
+        $content = htmlspecialchars($_POST['content'] ?? '');
+        $image_path = null; $thumb_path = null;
+
+        // 先查詢舊的圖片路徑
+        $stmt = $pdo->prepare("SELECT image_path, thumb_path FROM dbmemo WHERE id = ? AND user_id = ?");
+        $stmt->execute([$id, $user_id]);
+        $old = $stmt->fetch();
+
+        // 檢查是否上傳新圖片
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                $filename = uniqid('MEMO_') . '.' . $ext;
+                
+                if (!is_dir('uploads/images')) mkdir('uploads/images', 0777, true);
+                if (!is_dir('uploads/thumbs')) mkdir('uploads/thumbs', 0777, true);
+
+                $fullPath = 'uploads/images/' . $filename;
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $fullPath)) {
+                    $image_path = $fullPath;
+                    $tPath = 'uploads/thumbs/' . $filename;
+                    if (createThumbnail($fullPath, $tPath, 300, 300)) {
+                        $thumb_path = $tPath;
+                    }
+                    // 刪除舊圖片
+                    if ($old['image_path'] && file_exists($old['image_path'])) unlink($old['image_path']);
+                    if ($old['thumb_path'] && file_exists($old['thumb_path'])) unlink($old['thumb_path']);
+                }
+            }
+        }
+        
+        // 更新資料庫
+        if ($image_path) {
+            // 如果有新圖片，更新圖片路徑
+            $stmt = $pdo->prepare("UPDATE dbmemo SET content = ?, image_path = ?, thumb_path = ? WHERE id = ? AND user_id = ?");
+            $stmt->execute([$content, $image_path, $thumb_path, $id, $user_id]);
+        } else {
+            // 否則只更新內容
+            $stmt = $pdo->prepare("UPDATE dbmemo SET content = ? WHERE id = ? AND user_id = ?");
+            $stmt->execute([$content, $id, $user_id]);
+        }
+
+        header("Location: dashboard.php?token=" . urlencode($token));
+        exit;
 }
 
 // 防呆導向

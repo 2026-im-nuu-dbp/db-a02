@@ -117,10 +117,28 @@ $trashCount = $pdo->query("SELECT COUNT(*) FROM dbmemo WHERE user_id = $user_id 
                 
                 <div class="memo-content"><?= nl2br(htmlspecialchars($m['content'])) ?></div>
                 
+                <!-- 編輯表單 -->
+                <div id="edit-form-<?= $m['id'] ?>" style="display: none; margin-bottom: 15px;">
+                    <form action="memo_process.php" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="id" value="<?= $m['id'] ?>">
+                        <textarea name="content" required style="width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; font-size: 0.9rem; resize: vertical; min-height: 80px; box-sizing: border-box; margin-bottom: 10px;"><?= htmlspecialchars($m['content']) ?></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <input type="file" name="image" accept="image/*" class="file-input">
+                            <div>
+                                <button type="submit" class="btn btn-blue" style="padding: 4px 8px; font-size: 0.7rem;">儲存</button>
+                                <button type="button" class="btn btn-gray" style="padding: 4px 8px; font-size: 0.7rem;" onclick="toggleEdit(<?= $m['id'] ?>)">取消</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
                 <div class="card-footer">
                     <span><?= substr($m['created_at'], 5, 11) ?></span>
                     <div class="card-actions">
                         <?php if ($mode === 'active'): ?>
+                            <button class="btn btn-gray" style="padding: 4px 8px; font-size: 0.7rem;" onclick="toggleEdit(<?= $m['id'] ?>)">編輯</button>
                             <form action="memo_process.php" method="POST" style="display:inline;">
                                 <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
                                 <input type="hidden" name="action" value="soft_delete">
@@ -141,6 +159,17 @@ $trashCount = $pdo->query("SELECT COUNT(*) FROM dbmemo WHERE user_id = $user_id 
         <?php endforeach; ?>
     </div>
 </div> 
+
+<script>
+function toggleEdit(id) {
+    const form = document.getElementById('edit-form-' + id);
+    if (form.style.display === 'none' || form.style.display === '') {
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+    }
+}
+</script>
 
 </body>
 </html>
