@@ -140,7 +140,8 @@ $trashCount = $pdo->query("SELECT COUNT(*) FROM dbmemo WHERE user_id = $user_id 
             </div>
         <?php endforeach; ?>
     </div>
-</div>
+</div> 
 
 </body>
 </html>
+
