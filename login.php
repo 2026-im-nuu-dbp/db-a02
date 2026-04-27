@@ -22,7 +22,7 @@ if ($user) {
     header("Location: dashboard.php?token=" . urlencode($newToken));
     exit;
 } else {
-    header("Location: index.php?error=帳號或密碼錯誤");
+    header("Location: index.php?error=" . urlencode('帳號或密碼錯誤'));
     exit;
 }
 ?>
