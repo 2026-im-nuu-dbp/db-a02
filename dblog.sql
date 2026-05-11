@@ -1,1 +1,0 @@
-// careate a new table called "dblog"
